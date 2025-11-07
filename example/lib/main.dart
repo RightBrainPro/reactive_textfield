@@ -73,31 +73,52 @@ class _MyHomePageState extends State<MyHomePage>
       body: Padding(
         padding: const EdgeInsets.all(8.0),
         child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            spacing: 24.0,
-            children: [
-              Column(
-                spacing: 4.0,
-                children: [
-                  MyTextField(
-                    labelText: 'Field #1',
-                    historyController: _historyController,
-                  ),
-                  HistoryButtons(controller: _historyController),
-                ],
-              ),
-              InputDecorator(
-                decoration: InputDecoration(
-                  labelText: 'Field #2',
+          child: Form(
+            key: _formKey,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              spacing: 24.0,
+              children: [
+                Column(
+                  spacing: 4.0,
+                  children: [
+                    MyTextField(
+                      labelText: 'Field #1',
+                      historyController: _historyController,
+                      validateEmptyValue: true,
+                    ),
+                    HistoryButtons(controller: _historyController),
+                  ],
                 ),
-                child: Text(value),
-              ),
-              MyTextField(
-                labelText: 'Field #3',
-                maxLines: 3,
-              ),
-            ],
+                InputDecorator(
+                  decoration: InputDecoration(
+                    labelText: 'Field #2',
+                  ),
+                  child: Text(value),
+                ),
+                MyTextField(
+                  labelText: 'Field #3',
+                  maxLines: 3,
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    final form = _formKey.currentState;
+                    if (form == null) return;
+                    final valid = form.validate();
+                    ScaffoldMessenger.maybeOf(context)?.showSnackBar(SnackBar(
+                      content: Text(
+                        valid ? 'All fields are valid' : 'Invalid fields'
+                      ),
+                      showCloseIcon: true,
+                      backgroundColor: valid
+                        ? null
+                        : Theme.of(context).colorScheme.error,
+                    ));
+                  },
+                  child: Text('Submit'),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -144,6 +165,7 @@ class _MyHomePageState extends State<MyHomePage>
   }
 
   late final UndoHistoryController _historyController;
+  final _formKey = GlobalKey<FormState>();
 }
 
 
@@ -242,12 +264,14 @@ class MyTextField extends StatefulWidget
   final String? labelText;
   final int? maxLines;
   final UndoHistoryController? historyController;
+  final bool validateEmptyValue;
 
   const MyTextField({
     super.key,
     this.labelText,
     this.maxLines = 1,
     this.historyController,
+    this.validateEmptyValue = false,
   });
 
   @override
@@ -260,7 +284,7 @@ class _MyTextFieldState extends State<MyTextField>
   void initState()
   {
     super.initState();
-    _value = context.read<TextHolder>().value;
+    _text = context.read<TextHolder>().value;
     _focusNode = FocusNode();
   }
 
@@ -277,40 +301,64 @@ class _MyTextFieldState extends State<MyTextField>
     return Selector<TextHolder, String>(
       selector: (context, holder) => holder.value,
       builder: (context, value, child) {
-        if (!_focusNode.hasFocus) {
-          _value = value;
-        }
-        final synced = _value == value;
-        return ReactiveTextField(
-          decoration: InputDecoration(
-            labelText: widget.labelText,
-            suffixIcon: widget.maxLines == 1
-              ? null
-              : IconButton.filledTonal(
-                  onPressed: synced ? null : () {
-                    context.read<TextHolder>().value = _value;
-                    _focusNode.unfocus();
-                  },
-                  icon: Icon(Icons.done),
-                  iconSize: btnIconSize,
-                  constraints: btnConstraints,
-                ),
-            suffixIconColor: synced ? Theme.of(context).disabledColor : null,
-          ),
-          undoController: widget.historyController,
-          focusNode: _focusNode,
-          maxLines: widget.maxLines,
-          unfocusBehavior: widget.maxLines == 1
-            ? UnfocusBehavior.resetValue
-            : UnfocusBehavior.nothing,
-          value: value,
-          onTextChanged: (value) => setState(() => _value = value),
-          onValueChanged: (value) => context.read<TextHolder>().value = value,
+        if (!_focusNode.hasFocus) _text = value;
+        final synced = _text == value;
+        final decoration = InputDecoration(
+          labelText: widget.labelText,
+          suffixIcon: widget.maxLines == 1
+            ? null
+            : IconButton.filledTonal(
+                onPressed: synced ? null : () {
+                  context.read<TextHolder>().value = _text;
+                  _focusNode.unfocus();
+                },
+                icon: Icon(Icons.done),
+                iconSize: btnIconSize,
+                constraints: btnConstraints,
+              ),
+          suffixIconColor: synced ? Theme.of(context).disabledColor : null,
         );
+        final unfocusBehavior = widget.maxLines == 1
+          ? UnfocusBehavior.resetValue
+          : UnfocusBehavior.nothing;
+        return widget.validateEmptyValue
+          ? ReactiveTextFormField(
+              decoration: decoration,
+              undoController: widget.historyController,
+              focusNode: _focusNode,
+              maxLines: widget.maxLines,
+              unfocusBehavior: unfocusBehavior,
+              value: value,
+              validator: (value) => (value == null || value.isEmpty)
+                ? 'Field may not be empty.'
+                : null,
+              onTextChanged: _onTextChanged,
+              onValueChanged: _onValueChanged,
+            )
+          : ReactiveTextField(
+              decoration: decoration,
+              undoController: widget.historyController,
+              focusNode: _focusNode,
+              maxLines: widget.maxLines,
+              unfocusBehavior: unfocusBehavior,
+              value: value,
+              onTextChanged: _onTextChanged,
+              onValueChanged: _onValueChanged,
+            );
       },
     );
   }
 
-  late String _value;
+  void _onTextChanged(final String value)
+  {
+    setState(() => _text = value);
+  }
+
+  void _onValueChanged(final String value)
+  {
+    context.read<TextHolder>().value = value;
+  }
+
+  late String _text;
   late final FocusNode _focusNode;
 }

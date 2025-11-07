@@ -1,5 +1,5 @@
 name: reactive_textfield
-version: 1.0.0
+version: 1.1.0
 description: "A reactive TextField with a value and onValueChanged."
 repository: https://github.com/RightBrainPro/reactive_textfield
 issue_tracker: https://github.com/RightBrainPro/reactive_textfield/issues

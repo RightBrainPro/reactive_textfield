@@ -7,6 +7,7 @@ Creates the internal controller for manipulating the text. This limits the abili
 * Supports for reactivity using providers.
 * Inherits the native TextField properties.
 * Configuring behavior when input focus is lost (do nothing, reset the text value or save it automatically).
+* Supports form validation via `ReactiveTextFormField`.
 
 ## Getting started
 
@@ -23,7 +24,7 @@ ReactiveTextField(
     ),
     undoController: myHistoryController,
     focusNode: myFocusNode,
-    value: context.read<User>().email,
+    value: context.watch<User>().email,
     onValueChanged: (value) => context.read<User>().email = value,
 )
 ```
